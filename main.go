@@ -16,8 +16,10 @@ type BindFile struct {
 
 func main() {
 	router := gin.Default()
-	// Set a lower memory limit for multipart forms (default is 32 MiB)
-	router.MaxMultipartMemory = 8 << 20 // 8 MiB
+
+	var limit int64 = 8 << 20
+
+	router.MaxMultipartMemory = limit
 
 	router.LoadHTMLGlob("templates/*")
 
@@ -41,13 +43,17 @@ func main() {
 			return
 		}
 
-		// Save uploaded file
+		file := bindFile.File
+		if file.Size > limit {
+			c.String(http.StatusBadRequest, fmt.Sprintf("file size limit exceeded!"))
+			return
+		}
+
 		err := os.Mkdir("uploads", 0755)
 		if os.IsNotExist(err) {
 			os.Mkdir("uploads", 0755)
 		}
 
-		file := bindFile.File
 		dst := filepath.Join("uploads", filepath.Base(file.Filename))
 		if err := c.SaveUploadedFile(file, dst); err != nil {
 			c.String(http.StatusBadRequest, fmt.Sprintf("upload file err: %s", err.Error()))
