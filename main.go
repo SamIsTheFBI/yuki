@@ -31,7 +31,7 @@ func gen_id(length int) string {
 		id[i] += ch[rand.Intn(len(ch))]
 	}
 
-	return string(id)
+	return string(id[:])
 }
 
 func check_expire(id string) (bool, error) {
@@ -96,7 +96,9 @@ func main() {
 		expired, err := check_expire(id)
 		if err != nil {
 			c.String(http.StatusBadRequest, fmt.Sprintf("an error occurred while retrieving requested file."))
+			return
 		}
+
 		if expired {
 			file := filepath.Join("uploads", id)
 			meta := filepath.Join("metadata", id+`.json`)
