@@ -28,5 +28,6 @@ go.work
 "
 "
 
-# uploads
+# directories
 uploads/
+metadata/
