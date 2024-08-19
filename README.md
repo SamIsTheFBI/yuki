@@ -2,9 +2,10 @@
 
 yuki is a no-bullshit file hosting service written in Go.
 
-### ▲ todo
+### ▲ todo/features
 - [x] generate short url for files
 - [x] implement file expiration (with go routines)
+- [x] block specified mimetypes
 
 ### ▲ requirements
 

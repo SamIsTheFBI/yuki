@@ -106,6 +106,17 @@ func main() {
 		}
 	}()
 
+	blocked_mimetypes := [...]string{
+		"application/x-dosexec",
+		"application/x-executable",
+		"application/x-sharedlib",
+		"application/x-hdf5",
+		"application/java-archive",
+		"application/vnd.android.package-archive",
+		"application/x-rar",
+		"application/vnd.microsoft.portable-executable",
+	}
+
 	router := gin.Default()
 	var limit int64 = 8 << 20
 	router.MaxMultipartMemory = limit
@@ -132,6 +143,15 @@ func main() {
 		if file.Size > limit {
 			c.String(http.StatusBadRequest, fmt.Sprintf("file size limit exceeded!"))
 			return
+		}
+
+		content_type := file.Header.Get("Content-Type")
+		fmt.Println(content_type)
+		for _, blocked_mimetype := range blocked_mimetypes {
+			if content_type == blocked_mimetype {
+				c.String(http.StatusBadRequest, fmt.Sprintf("blocked filetype!"))
+				return
+			}
 		}
 
 		err := os.Mkdir("uploads", 0755)
