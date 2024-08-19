@@ -34,20 +34,38 @@ func gen_id(length int) string {
 	return string(id[:])
 }
 
-func check_expire(id string) (bool, error) {
-	meta_path := filepath.Join("metadata", id+`.json`)
+func check_expire(meta_path string) {
 	json_data, err := os.ReadFile(meta_path)
 	if err != nil {
-		return false, err
 	}
 
 	var file_meta FileMeta
 	err = json.Unmarshal(json_data, &file_meta)
 	if err != nil {
-		return false, err
 	}
 
-	return time.Now().After(file_meta.Expiration), nil
+	if time.Now().After(file_meta.Expiration) {
+		file := filepath.Join("uploads", file_meta.Filename)
+		os.Remove(file)
+		os.Remove(meta_path)
+	}
+}
+
+func check_meta() {
+	f, err := os.Open("metadata")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	meta_files, err := f.ReadDir(0)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	for _, v := range meta_files {
+		meta_path := filepath.Join("metadata", v.Name())
+		check_expire(meta_path)
+	}
 }
 
 func create_meta(id string) {
@@ -81,6 +99,13 @@ func create_meta(id string) {
 }
 
 func main() {
+	go func() {
+		for true {
+			check_meta()
+			time.Sleep(time.Minute * 1)
+		}
+	}()
+
 	router := gin.Default()
 	var limit int64 = 8 << 20
 	router.MaxMultipartMemory = limit
@@ -92,28 +117,12 @@ func main() {
 
 	router.GET("/:id", func(c *gin.Context) {
 		id := c.Param("id")
-
-		expired, err := check_expire(id)
-		if err != nil {
-			c.String(http.StatusBadRequest, fmt.Sprintf("an error occurred while retrieving requested file."))
-			return
-		}
-
-		if expired {
-			file := filepath.Join("uploads", id)
-			meta := filepath.Join("metadata", id+`.json`)
-			os.Remove(file)
-			os.Remove(meta)
-			c.String(http.StatusBadRequest, fmt.Sprintf("Seems like the file you requested has already expired"))
-		} else {
-			file := filepath.Join("uploads", id)
-			c.File(file)
-		}
+		file := filepath.Join("uploads", id)
+		c.File(file)
 	})
 
 	router.POST("/", func(c *gin.Context) {
 		var bindFile BindFile
-
 		if err := c.ShouldBind(&bindFile); err != nil {
 			c.String(http.StatusBadRequest, fmt.Sprintf("err: %s", err.Error()))
 			return
@@ -131,7 +140,6 @@ func main() {
 		}
 
 		id := gen_id(4) + filepath.Ext(file.Filename)
-
 		dst := filepath.Join("uploads", id)
 		if err := c.SaveUploadedFile(file, dst); err != nil {
 			c.String(http.StatusBadRequest, fmt.Sprintf("upload file err: %s", err.Error()))
@@ -143,5 +151,6 @@ func main() {
 		create_meta(id)
 		c.String(http.StatusOK, fmt.Sprintf("%s", url))
 	})
+
 	router.Run(":8080")
 }
